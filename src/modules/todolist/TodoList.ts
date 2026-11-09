@@ -1,70 +1,66 @@
-import { TodoItem } from '../../interfaces';
-import './todoList.scss';
+import type { TodoItem } from "./types";
+import { escapeHTML } from "../../utils";
+import { readStoredJSON } from "../../storage";
+import { translateContent } from "../../i18n";
+import "./todoList.scss";
 
-class TodoList extends HTMLDivElement {
-  constructor() {
-    super();
-
-    this.className = 'todolist';
-    this.dataset.id = 'todolist-toggle';
-  }
-
+class TodoList extends HTMLElement {
+  private initialized = false;
   addListener() {
-    this.querySelector('.todolist__main-input')?.addEventListener(
-      'change',
-      (event) => {
-        const todoItemContent = (event.target as HTMLInputElement).value;
-        if (todoItemContent) {
-          this.addTodoItem(todoItemContent);
-          const { target } = event;
-          (target as HTMLInputElement).value = '';
-          this.toggleTodoView('on');
-        }
+    this.querySelector(".todolist__main-input")?.addEventListener("change", (event) => {
+      const todoItemContent = (event.target as HTMLInputElement).value.trim();
+      if (todoItemContent) {
+        this.addTodoItem(todoItemContent);
+        const { target } = event;
+        (target as HTMLInputElement).value = "";
+        this.toggleTodoView("on");
       }
-    );
+    });
 
-    this.addEventListener('click', (event) => {
+    this.addEventListener("click", (event) => {
       if (event.target && event.target instanceof HTMLElement) {
-        if (event.target.closest('.todolist-item__delete')) {
-          const parent = event.target.closest('.todolist-item');
+        if (event.target.closest(".todolist-item__delete")) {
+          const parent = event.target.closest(".todolist-item");
           if (parent) {
             if (!parent.nextElementSibling && !parent.previousElementSibling) {
-              this.toggleTodoView('toggle');
+              this.toggleTodoView("off");
             }
             parent.remove();
           }
-        } else if (event.target.closest('.todolist-item__content')) {
-          TodoList.editTodoItem('on', event.target as HTMLElement);
-        } else if (event.target.closest('.todolist__toggle-button')) {
-          this.toggleTodoView('toggle');
-        } else if (event.target.closest('.todolist-item-editor__close')) {
-          TodoList.editTodoItem('toggle', event.target as HTMLElement);
-        } else if (event.target.closest('.todolist-item-editor__confirm')) {
-          TodoList.editTodoItem('off', event.target as HTMLElement);
+        } else if (event.target.closest(".todolist-item__content")) {
+          TodoList.editTodoItem("on", event.target as HTMLElement);
+        } else if (event.target.closest(".todolist__toggle-button")) {
+          this.toggleTodoView("toggle");
+        } else if (event.target.closest(".todolist-item-editor__close")) {
+          TodoList.editTodoItem("toggle", event.target as HTMLElement);
+        } else if (event.target.closest(".todolist-item-editor__confirm")) {
+          TodoList.editTodoItem("off", event.target as HTMLElement);
         }
+        this.storeTodoList();
       }
     });
 
-    window.addEventListener('beforeunload', () => {
+    this.addEventListener("change", () => {
       this.storeTodoList();
-    });
-
-    window.addEventListener('load', () => {
-      this.restoreTodoList();
     });
   }
 
   restoreTodoList() {
-    const storage = window.localStorage;
-    const todolist = storage.getItem('todolist');
-    if (todolist) {
-      const parsedTodo: TodoItem[] = JSON.parse(todolist);
+    const todolist = readStoredJSON("todolist");
+    if (Array.isArray(todolist)) {
+      const parsedTodo = todolist.filter(
+        (item): item is TodoItem =>
+          item !== null &&
+          typeof item === "object" &&
+          typeof item.value === "string" &&
+          typeof item.checked === "boolean",
+      );
       if (parsedTodo.length) {
         parsedTodo.forEach((elem) => {
           const { value, checked } = elem;
           this.addTodoItem(value, checked);
         });
-        this.toggleTodoView('on');
+        this.toggleTodoView("on");
       }
     }
   }
@@ -75,89 +71,84 @@ class TodoList extends HTMLDivElement {
       value: string;
       checked: boolean;
     }[] = [];
-    const items = this.querySelectorAll('.todolist-item');
+    const items = this.querySelectorAll(".todolist-item");
     if (items) {
       items.forEach((elem) => {
-        const contentElement = elem.querySelector('.todolist-item__content');
-        const checkboxElement = elem.querySelector('.todolist-item__toggle');
+        const contentElement = elem.querySelector(".todolist-item__content");
+        const checkboxElement = elem.querySelector(".todolist-item__toggle");
         const itemData: TodoItem = {} as TodoItem;
         itemData.value = contentElement?.textContent as string;
         itemData.checked = (checkboxElement as HTMLInputElement).checked;
         data.push(itemData);
       });
-      storage.setItem('todolist', JSON.stringify(data));
+      storage.setItem("todolist", JSON.stringify(data));
     }
   }
 
   static toggleEditMode(editor: Element, content: Element) {
-    editor.classList.toggle('hidden');
-    content.classList.toggle('hidden');
+    editor.classList.toggle("hidden");
+    content.classList.toggle("hidden");
   }
 
-  static editTodoItem(
-    type: 'on' | 'off' | 'toggle',
-    target: HTMLElement | HTMLInputElement
-  ) {
-    const targetParent = target.closest('.todolist-item');
-    const editor = targetParent?.querySelector('.todolist-item__editor');
-    const content = targetParent?.querySelector('.todolist-item__content');
-    const input = targetParent?.querySelector('.todolist-item__editor input');
+  static editTodoItem(type: "on" | "off" | "toggle", target: HTMLElement | HTMLInputElement) {
+    const targetParent = target.closest(".todolist-item");
+    const editor = targetParent?.querySelector(".todolist-item__editor");
+    const content = targetParent?.querySelector(".todolist-item__content");
+    const input = targetParent?.querySelector(".todolist-item__editor input");
     if (editor && content && input) {
       TodoList.toggleEditMode(editor, content);
-      if (type === 'on') {
+      if (type === "on") {
         if (content.textContent) {
-          input.setAttribute('placeholder', content.textContent);
+          input.setAttribute("placeholder", content.textContent);
           (input as HTMLInputElement).value = content.textContent;
         }
-      } else if (type === 'off') {
+      } else if (type === "off") {
         content.textContent = (input as HTMLInputElement).value;
       }
     }
   }
 
   addTodoItem(todoItemContent: string, checked?: boolean) {
-    const todolist = this.querySelector('.todolist__content');
+    const todolist = this.querySelector(".todolist__content");
     if (todolist) {
-      todolist.insertAdjacentHTML(
-        'beforeend',
-        TodoList.makeTodoItem(todoItemContent, checked)
-      );
+      todolist.insertAdjacentHTML("beforeend", TodoList.makeTodoItem(todoItemContent, checked));
+      translateContent(this);
     }
   }
 
-  toggleTodoView(type: 'on' | 'off' | 'toggle') {
+  toggleTodoView(type: "on" | "off" | "toggle") {
     this.toggleTodolistContent(type);
     this.toggleTodolistButton(type);
   }
 
-  toggleTodolistContent(type: 'on' | 'off' | 'toggle') {
-    const todolist = this.querySelector('.todolist__content');
+  toggleTodolistContent(type: "on" | "off" | "toggle") {
+    const todolist = this.querySelector(".todolist__content");
     switch (type) {
-      case 'on':
-        todolist?.classList.remove('hidden');
+      case "on":
+        todolist?.classList.remove("hidden");
         break;
-      case 'off':
-        todolist?.classList.add('rotated');
+      case "off":
+        todolist?.classList.add("hidden");
         break;
-      case 'toggle':
-        todolist?.classList.toggle('hidden');
+      case "toggle":
+        todolist?.classList.toggle("hidden");
         break;
       default:
         break;
     }
   }
 
-  toggleTodolistButton(type: 'on' | 'off' | 'toggle') {
-    const todolistButton = this.querySelector('.todolist__toggle-button');
+  toggleTodolistButton(type: "on" | "off" | "toggle") {
+    const todolistButton = this.querySelector(".todolist__toggle-button");
     switch (type) {
-      case 'on':
-        todolistButton?.classList.add('rotated');
+      case "on":
+        todolistButton?.classList.add("rotated");
         break;
-      case 'off':
-        todolistButton?.classList.remove('hidden');
+      case "off":
+        todolistButton?.classList.remove("rotated");
         break;
-      case 'toggle':
-        todolistButton?.classList.toggle('rotated');
+      case "toggle":
+        todolistButton?.classList.toggle("rotated");
         break;
       default:
         break;
@@ -172,9 +163,9 @@ class TodoList extends HTMLDivElement {
           class="todolist-item__toggle"
           data-i18n="[title]todo.item.complete"
           title="complete item"
-          ${checked ? 'checked' : ''}
+          ${checked ? "checked" : ""}
         />
-        <span class="todolist-item__content" title="click to edit" data-i18n="[title]todo.item.edit">${todoItemContent}</span>
+        <span class="todolist-item__content" title="click to edit" data-i18n="[title]todo.item.edit">${escapeHTML(todoItemContent)}</span>
         <div class="todolist-item__editor todolist-item-editor hidden">
           <input type="text" placeholder="Update item" data-i18n="[placeholder]todo.item.update" />
           <div class="todolist-item-editor__controls">
@@ -197,7 +188,7 @@ class TodoList extends HTMLDivElement {
 
   render() {
     this.insertAdjacentHTML(
-      'afterbegin',
+      "afterbegin",
       `
         <div class="todolist__controls">
         <input id="todoText" type="text" class="todolist__main-input title_big" placeholder="What is your plans for today?" data-i18n="[placeholder]todo.placeholder" />
@@ -208,13 +199,18 @@ class TodoList extends HTMLDivElement {
         <ol class="todolist__content hidden">
 
         </ol>
-    `
+    `,
     );
   }
 
   connectedCallback() {
+    this.classList.add("todolist");
+    this.dataset.id = "todolist-toggle";
+    if (this.initialized) return;
+    this.initialized = true;
     this.render();
     this.addListener();
+    this.restoreTodoList();
   }
 }
 

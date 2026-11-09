@@ -1,90 +1,81 @@
-import { checkLanguage, localize } from '../../i18n';
-import { WeatherTypes } from '../../interfaces';
-import './weather.scss';
+import { checkLanguage, translateContent } from "../../i18n";
+import i18next from "i18next";
+import type { WeatherData } from "./types";
+import { getWeather } from "./weatherApi";
+import { escapeHTML } from "../../utils";
+import "./weather.scss";
 
-const OPENWEATHER_API_KEY = '3cfc2bf3738bb671a43ba8071181895a';
+class Weather extends HTMLElement {
+  private initialized = false;
+  private request?: AbortController;
 
-class Weather extends HTMLDivElement {
+  private refreshLanguage = () => {
+    const query = this.querySelector<HTMLInputElement>(".weather__query")?.value.trim();
+    if (query) void this.updateWeather(query);
+  };
+
   initialQuery: string;
 
   constructor() {
     super();
-    this.className = 'weather';
-    this.dataset.id = 'weather-toggle';
-    this.initialQuery = Weather.readStore() || '';
-    if (this.initialQuery) {
-      this.updateWeather(this.initialQuery, OPENWEATHER_API_KEY);
-    }
+    this.initialQuery = Weather.readStore() || "";
   }
 
   static readStore() {
-    return window.localStorage.getItem('weatherQuery');
+    return window.localStorage.getItem("weatherQuery");
   }
 
   static writeStore(weatherQuery: string) {
-    window.localStorage.setItem('weatherQuery', weatherQuery);
+    window.localStorage.setItem("weatherQuery", weatherQuery);
   }
 
   addListener() {
-    this.querySelector('.weather__query')?.addEventListener(
-      'change',
-      (event: Event) => {
-        const query = (event.target as HTMLInputElement).value;
-        Weather.writeStore(query);
-        if (query) {
-          this.updateWeather(query, OPENWEATHER_API_KEY);
-        }
+    this.querySelector(".weather__query")?.addEventListener("change", (event: Event) => {
+      const query = (event.target as HTMLInputElement).value.trim();
+      Weather.writeStore(query);
+      this.request?.abort();
+      if (query) {
+        void this.updateWeather(query);
+      } else {
+        this.updateWeatherContainer();
+        this.updateErrorContainer();
       }
-    );
+    });
   }
 
-  static async getWeather(query: string, apiKey: string) {
-    const lang = checkLanguage();
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${query}&appid=${apiKey}&units=metric&lang=${lang}`;
-    const response = await fetch(url);
-    if (response.ok) {
-      return response.json();
-    }
-    throw new Error(`${response.status} - ${response.statusText}`);
-  }
-
-  async updateWeather(query: string, apiKey: string) {
+  async updateWeather(query: string) {
+    this.request?.abort();
+    const request = new AbortController();
+    this.request = request;
     try {
-      const weatherResponse: WeatherTypes = await Weather.getWeather(
-        query,
-        apiKey
-      );
+      const weatherResponse = await getWeather(query, checkLanguage(), request.signal);
+      if (request.signal.aborted || !this.isConnected) return;
       this.updateWeatherContainer(weatherResponse);
       this.updateErrorContainer();
     } catch (error) {
+      if (request.signal.aborted || !this.isConnected) return;
       this.updateWeatherContainer();
       this.updateErrorContainer(error);
     }
   }
 
   updateErrorContainer(error?: unknown) {
-    const errorContainer = this.querySelector('.weather__error');
+    const errorContainer = this.querySelector(".weather__error");
     if (errorContainer) {
-      errorContainer.innerHTML = error ? `${error}<br>` : '';
-      if (error) {
-        errorContainer.setAttribute('data-i18n', '[append]weather.error');
-        localize('.weather__error');
-      } else {
-        errorContainer.removeAttribute('data-i18n');
-      }
+      errorContainer.innerHTML = error ? `${escapeHTML(String(error))}<br><span data-i18n="weather.error"></span>` : "";
+      translateContent(errorContainer as HTMLElement);
     }
   }
 
-  updateWeatherContainer(weatherResponse?: WeatherTypes) {
-    const weatherDetails = this.querySelector('.weather__details');
+  updateWeatherContainer(weatherResponse?: WeatherData) {
+    const weatherDetails = this.querySelector(".weather__details");
     if (weatherDetails) {
-      weatherDetails.innerHTML = weatherResponse
-        ? Weather.createWeatherDetails(weatherResponse)
-        : '';
+      weatherDetails.innerHTML = weatherResponse ? Weather.createWeatherDetails(weatherResponse) : "";
+      translateContent(weatherDetails as HTMLElement);
     }
   }
 
-  static createWeatherDetails(weatherResponse: WeatherTypes) {
+  static createWeatherDetails(weatherResponse: WeatherData) {
     const { main, wind, weather } = weatherResponse;
     const { temp, humidity } = main;
     const { id, description } = weather[0];
@@ -96,7 +87,7 @@ class Weather extends HTMLDivElement {
       </div>
       <div class="weather__details_description">
         <h4 data-i18n="weather.description">Description: </h4>
-        <span class="weather__detail">${description}</span>
+        <span class="weather__detail">${escapeHTML(description)}</span>
       </div>
       <div class="weather__details_wind">
         <h4 data-i18n="weather.wind">Wind: </h4>
@@ -111,18 +102,30 @@ class Weather extends HTMLDivElement {
 
   render() {
     this.insertAdjacentHTML(
-      'afterbegin',
+      "afterbegin",
       `
-      <input type="text" class="weather__query title_big" placeholder="Enter city name" data-i18n="[placeholder]weather.placeholder" value="${this.initialQuery}" />
+      <input type="text" class="weather__query title_big" placeholder="Enter city name" data-i18n="[placeholder]weather.placeholder" value="${escapeHTML(this.initialQuery)}" />
       <div class="weather__error"></div>
       <div class="weather__details"></div>
-    `
+    `,
     );
   }
 
   connectedCallback() {
-    this.render();
-    this.addListener();
+    this.classList.add("weather");
+    this.dataset.id = "weather-toggle";
+    i18next.on("languageChanged", this.refreshLanguage);
+    if (!this.initialized) {
+      this.render();
+      this.addListener();
+      this.initialized = true;
+    }
+    this.refreshLanguage();
+  }
+
+  disconnectedCallback() {
+    this.request?.abort();
+    i18next.off("languageChanged", this.refreshLanguage);
   }
 }
 

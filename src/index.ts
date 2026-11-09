@@ -1,44 +1,52 @@
-import ChangeBackgroundButtons from './modules/background/changeBackgroundButtons/ChangeBackgroundButtons';
-import ActualDate from './modules/actualDate/ActualDate';
-import Greetings from './modules/greetings/Greetings';
-import Footer from './modules/footer/footer';
-import Quote from './modules/quote/quote';
-import Settings from './modules/settings/Settings';
-import TodoList from './modules/todolist/TodoList';
-import Weather from './modules/weather/Weather';
-import Player from './modules/player/Player';
-import 'boxicons';
-import './i18n';
-import 'normalize.css';
-import './style.scss';
+import type Background from "./modules/background/Background";
+import type Settings from "./modules/settings/Settings";
+import type { BackgroundOptions } from "./modules/background/types";
+import { registerComponents } from "./registerComponents";
+import { i18nReady, translateContent } from "./i18n";
+import "normalize.css";
+import "./style.scss";
 
-customElements.define('greetings-custom', Greetings, { extends: 'div' });
-customElements.define('quote-custom', Quote, { extends: 'div' });
-customElements.define('footer-custom', Footer, { extends: 'div' });
-customElements.define('date-custom', ActualDate, { extends: 'div' });
-customElements.define('todo-custom', TodoList, { extends: 'div' });
-customElements.define('weather-custom', Weather, { extends: 'div' });
-customElements.define('settings-custom', Settings, { extends: 'div' });
-customElements.define('background-custom', ChangeBackgroundButtons, {
-  extends: 'div',
-});
-
-customElements.define('player-custom', Player, { extends: 'div' });
+registerComponents();
 
 function App() {
   return `
     <main>
-    <div is="player-custom"></div>
-    <div is="background-custom"></div>
-    <div is="date-custom"></div>
-    <div is="greetings-custom"></div>
-    <div is="weather-custom"></div>
-    <div is="todo-custom"></div>
-    <div is="quote-custom"></div>
-    <div is="settings-custom"></div>
+    <player-custom></player-custom>
+    <background-custom></background-custom>
+    <date-custom></date-custom>
+    <greetings-custom></greetings-custom>
+    <weather-custom></weather-custom>
+    <todo-custom></todo-custom>
+    <quote-custom></quote-custom>
+    <settings-custom></settings-custom>
     </main>
-    <div is="footer-custom"></div>
+    <footer-custom></footer-custom>
     `;
 }
 
-document.body.insertAdjacentHTML('afterbegin', App());
+async function mountApp() {
+  await i18nReady;
+  const template = document.createElement("template");
+  template.innerHTML = App();
+  const main = template.content.querySelector("main")!;
+  let backgroundRequest = 0;
+
+  main.addEventListener("visibility-change", (event) => {
+    const visible = (event as CustomEvent<string[]>).detail;
+    main.querySelectorAll<HTMLElement>("[data-id]").forEach((element) => {
+      element.classList.toggle("invisible", !visible.includes(element.dataset.id || ""));
+    });
+  });
+  main.addEventListener("background-settings-change", async (event) => {
+    const background = main.querySelector<Background>("background-custom");
+    const settings = main.querySelector<Settings>("settings-custom");
+    if (!background || !settings) return;
+    const request = ++backgroundRequest;
+    await background.setOptions((event as CustomEvent<BackgroundOptions>).detail);
+    if (request === backgroundRequest) settings.setBackgroundOptions(background.options);
+  });
+  document.body.prepend(template.content);
+  translateContent();
+}
+
+void mountApp();

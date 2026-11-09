@@ -1,5 +1,5 @@
-import { PlaylistItem } from '../../interfaces';
-import calculateNumber from '../../utils';
+import type { PlaylistItem } from "./types";
+import calculateNumber from "../../utils";
 
 class PlayOrder {
   value: number;
@@ -14,16 +14,11 @@ class PlayOrder {
     this.minValue = 0;
   }
 
-  update(type: 'increase' | 'decrease' | 'replace', orderForReplace?: number) {
-    if (type === 'replace' && orderForReplace !== undefined) {
+  update(type: "increase" | "decrease" | "replace", orderForReplace?: number) {
+    if (type === "replace" && orderForReplace !== undefined) {
       this.value = orderForReplace;
     } else {
-      this.value = calculateNumber(
-        type,
-        this.value,
-        this.maxValue,
-        this.minValue
-      );
+      this.value = calculateNumber(type, this.value, this.maxValue, this.minValue);
     }
   }
 }

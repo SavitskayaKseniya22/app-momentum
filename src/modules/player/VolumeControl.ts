@@ -1,64 +1,64 @@
 class VolumeControl {
   audioElement: HTMLAudioElement;
 
-  constructor(audio: HTMLAudioElement) {
+  constructor(
+    audio: HTMLAudioElement,
+    private readonly root: HTMLElement,
+  ) {
     this.audioElement = audio;
   }
 
-  addListener() {
-    document.addEventListener('click', (event) => {
-      if (event.target && event.target instanceof HTMLElement) {
-        if (event.target.closest('.volume__control')) {
-          VolumeControl.toggleVolume(this.audioElement);
+  addListener(signal: AbortSignal) {
+    const range = this.root.querySelector<HTMLInputElement>(".volume__range");
+    if (range) range.value = String(this.audioElement.muted ? 0 : this.audioElement.volume);
+    this.root.addEventListener(
+      "click",
+      (event) => {
+        if (event.target && event.target instanceof HTMLElement) {
+          if (event.target.closest(".volume__control")) {
+            this.toggleVolume();
+          }
         }
-      }
-    });
+      },
+      { signal },
+    );
 
-    document
-      .querySelector('.volume__range')
-      ?.addEventListener('input', (event) => {
-        this.audioElement.volume = Number(
-          (event.target as HTMLInputElement).value
-        );
-        const volumeControl = document.querySelector(
-          '.volume__control'
-        ) as HTMLElement;
+    this.root.querySelector(".volume__range")?.addEventListener(
+      "input",
+      (event) => {
+        this.audioElement.muted = false;
+        this.audioElement.volume = Number((event.target as HTMLInputElement).value);
+        const volumeControl = this.root.querySelector(".volume__control") as HTMLElement;
         if (this.audioElement.volume) {
           delete volumeControl.dataset.muted;
         } else {
-          volumeControl.dataset.muted = 'true';
+          volumeControl.dataset.muted = "true";
         }
-      });
+      },
+      { signal },
+    );
   }
 
-  static toggleVolume(audio: HTMLAudioElement) {
-    const volumeRange = document.querySelector(
-      '.volume__range'
-    ) as HTMLInputElement;
-    const volumeControl = document.querySelector(
-      '.volume__control'
-    ) as HTMLElement;
+  toggleVolume() {
+    const audio = this.audioElement;
+    const volumeRange = this.root.querySelector(".volume__range") as HTMLInputElement;
+    const volumeControl = this.root.querySelector(".volume__control") as HTMLElement;
     const isMuted = audio.muted;
     if (audio.volume) {
       if (isMuted) {
-        Object.assign(audio, {
-          muted: false,
-        });
+        audio.muted = false;
         volumeRange.value = String(audio.volume);
         delete volumeControl.dataset.muted;
       } else {
-        Object.assign(audio, {
-          muted: true,
-        });
+        audio.muted = true;
 
-        volumeRange.value = '0';
-        volumeControl.dataset.muted = 'true';
+        volumeRange.value = "0";
+        volumeControl.dataset.muted = "true";
       }
     } else {
-      Object.assign(audio, {
-        volume: 0.5,
-      });
-      volumeRange.value = '0.5';
+      audio.volume = 0.5;
+      audio.muted = false;
+      volumeRange.value = "0.5";
       delete volumeControl.dataset.muted;
     }
   }

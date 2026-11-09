@@ -1,10 +1,23 @@
 .slider__background {
+  background: #20252b center / cover no-repeat;
+  background-blend-mode: multiply;
+  background-color: rgba(0, 0, 0, 0.5);
   width: 100vw;
   height: 100vh;
   position: absolute;
   top: 0;
   left: 0;
   z-index: -1;
+}
+
+.background {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.slider__icons_icon {
+  pointer-events: auto;
 }
 
 .slider__icons {

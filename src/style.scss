@@ -1,6 +1,6 @@
 @font-face {
-  font-family: 'Arial-MT';
-  src: url('./assets/fonts/Arial-MT.woff');
+  font-family: "Arial-MT";
+  src: url("./assets/fonts/Arial-MT.woff");
 }
 
 * {
@@ -31,13 +31,13 @@ input {
   padding: 0.5rem 1rem;
 }
 
-input[type='checkbox'],
-input[type='radio'],
-input[type='range'] {
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
   cursor: pointer;
 }
 
-input[type='text'] {
+input[type="text"] {
   cursor: text;
 }
 
@@ -95,7 +95,7 @@ body {
   width: 100svw;
   height: 100svh;
   overflow: hidden;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
   color: #fff;
   text-align: center;
   background-blend-mode: multiply;

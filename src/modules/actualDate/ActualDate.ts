@@ -1,75 +1,67 @@
-import { ActualDateType } from '../../interfaces';
-import './ActualDate.scss';
-import { checkLanguage } from '../../i18n';
+import "./ActualDate.scss";
+import { checkLanguage } from "../../i18n";
 
-class ActualDate extends HTMLDivElement {
-  constructor() {
-    super();
-    this.className = 'date';
-  }
+class ActualDate extends HTMLElement {
+  private initialized = false;
+  private timer?: ReturnType<typeof setInterval>;
 
   static getActualDate() {
     const lang = checkLanguage();
-    const date: ActualDateType = {} as ActualDateType;
-    date.now = new Date();
-    date.dateString = date.now.toLocaleDateString(lang, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
+    const now = new Date();
+    const dateString = now.toLocaleDateString(lang, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
-    date.timeString = date.now.toLocaleTimeString('ru-RU');
-
-    return date;
-  }
-
-  static getTimeOfDay() {
-    const hours = this.getActualDate().now.getHours();
-    if (hours >= 6 && hours < 12) {
-      return 'morning';
-    }
-    if (hours >= 12 && hours < 18) {
-      return 'afternoon';
-    }
-    if (hours >= 18 && hours < 24) {
-      return 'evening';
-    }
-    return 'night';
+    return { now, dateString, timeString: now.toLocaleTimeString(lang) };
   }
 
   updateDateContainer() {
-    const { timeString, dateString } = ActualDate.getActualDate();
-    const timeContainer = this.querySelector('.date__time');
-    const dateContainer = this.querySelector('.date__date');
+    const { now, timeString, dateString } = ActualDate.getActualDate();
+    const timeContainer = this.querySelector(".date__time");
+    const dateContainer = this.querySelector(".date__date");
     if (timeContainer) {
       timeContainer.textContent = timeString;
+      (timeContainer as HTMLTimeElement).dateTime = now.toISOString();
     }
     if (dateContainer) {
       dateContainer.textContent = dateString;
+      (dateContainer as HTMLTimeElement).dateTime = now.toISOString();
     }
   }
 
   updater() {
-    setInterval(() => {
+    clearInterval(this.timer);
+    this.timer = setInterval(() => {
       this.updateDateContainer();
     }, 1000);
   }
 
   render() {
-    const { timeString, dateString } = ActualDate.getActualDate();
+    const { now, timeString, dateString } = ActualDate.getActualDate();
     this.insertAdjacentHTML(
-      'afterbegin',
+      "afterbegin",
       `
-    <time class="date__time" data-id="time-toggle">${timeString}</time>
+    <time class="date__time" data-id="time-toggle" datetime="${now.toISOString()}">${timeString}</time>
     <br>
-    <date class="date__date" data-id="date-toggle">${dateString}</date>
-    `
+    <time class="date__date" data-id="date-toggle" datetime="${now.toISOString()}">${dateString}</time>
+    `,
     );
   }
 
   connectedCallback() {
-    this.render();
+    this.classList.add("date");
+    if (!this.initialized) {
+      this.render();
+      this.initialized = true;
+    }
+    this.updateDateContainer();
     this.updater();
+  }
+
+  disconnectedCallback() {
+    clearInterval(this.timer);
   }
 }
 

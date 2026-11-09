@@ -55,7 +55,7 @@
   }
 }
 
-input[type='range'] {
+input[type="range"] {
   appearance: none;
   background-color: transparent;
   padding: 0;
@@ -139,7 +139,7 @@ input[type='range'] {
   }
 }
 
-input[name='playlist-item'] {
+input[name="playlist-item"] {
   display: none;
 
   &:checked ~ .playlist-item__play-index {
@@ -152,7 +152,7 @@ input[name='playlist-item'] {
     color: #c5b358;
   }
 
-  &[data-muted='true'] {
+  &[data-muted="true"] {
     i {
       color: black;
     }
